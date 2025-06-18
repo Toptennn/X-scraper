@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 async def main():
     """Main execution function demonstrating all search modes."""
     config = TwitterConfig.create_default()
+    screen_name = input("Enter the Twitter screen name to scrape: ").strip()
     scraper = TwitterScraper(config)
     ui = TwitterScraperUI()
     
@@ -40,12 +41,12 @@ async def main():
         await scraper.authenticate()
         
         # Get user information
-        user = await scraper.get_user_by_screen_name(config.screen_name)
+        user = await scraper.get_user_by_screen_name(screen_name)
         
         # Fetch timeline tweets
         logger.info("Fetching user timeline...")
         timeline_tweets = await scraper.fetch_user_timeline(user.id, count=20)
-        ui.print_tweets_summary(timeline_tweets, f"Timeline: @{config.screen_name}")
+        ui.print_tweets_summary(timeline_tweets, f"Timeline: @{screen_name}")
         
         # Search examples for all three modes
         search_results = []
@@ -92,7 +93,7 @@ async def main():
         
         timeline_file = await scraper.export_to_csv(
             timeline_tweets, 
-            prefix=f"timeline_{config.screen_name}"
+            prefix=f"timeline_{screen_name}"
         )
         
         search_files = []

@@ -60,15 +60,14 @@ class SearchParameters:
 class TwitterConfig:
     """Configuration class for Twitter scraping operations."""
     credentials: TwitterCredentials
-    screen_name: str = 'Jingggxd'
     output_dir: str = 'output'
-    search_params: SearchParameters = field(default_factory=lambda: SearchParameters('#Python'))
+    search_params: Optional[SearchParameters] = None
     
     @classmethod
     def create_default(cls) -> 'TwitterConfig':
         """Create default configuration."""
         credentials = TwitterCredentials(
-            auth_id='USERNAME',
-            password='***REMOVED***'
+            auth_id='',
+            password=''
         )
         return cls(credentials=credentials)
