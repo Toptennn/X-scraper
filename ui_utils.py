@@ -1,9 +1,3 @@
-"""
-User interface and display utilities for Twitter scraper.
-
-Provides methods for displaying tweets and completion summaries.
-"""
-
 from pathlib import Path
 from typing import List
 

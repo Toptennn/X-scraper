@@ -1,13 +1,7 @@
-"""
-Main Twitter scraper class.
-
-Provides the core functionality for scraping Twitter data.
-"""
-
 import asyncio
 import logging
 import random
-from typing import List, Optional
+from typing import List, Optional, Callable
 
 from twikit import Client
 
@@ -38,6 +32,9 @@ class TwitterScraper:
                 cookies_file=self.config.credentials.cookies_file
             )
             logger.info("Successfully authenticated with Twitter")
+            delay = random.uniform(3, 10)
+            logger.info(f"Sleeping for {delay:.2f} seconds after authentication to mimic human.")
+            await asyncio.sleep(delay)
         except Exception as e:
             logger.error(f"Authentication failed: {e}")
             raise
@@ -52,10 +49,12 @@ class TwitterScraper:
             logger.error(f"Failed to get user {screen_name}: {e}")
             raise
     
-    async def fetch_user_timeline(self, user_id: str, count: int = 100) -> List:
+    async def fetch_user_timeline(self, user_id: str, count: int = 100, 
+                                 progress_callback: Optional[Callable] = None) -> List:
         """Fetch tweets from user's timeline with pagination support."""
         all_tweets = []
         cursor = None
+        batch_num = 0
         
         try:
             while len(all_tweets) < count:
@@ -71,15 +70,27 @@ class TwitterScraper:
                     break
                 
                 all_tweets.extend(tweets)
+                progress = len(all_tweets) / count
+                
+                # Call progress callback if provided
+                if progress_callback:
+                    progress_callback(progress, len(all_tweets), count)
+                
                 logger.info(f"Fetched {len(tweets)} tweets (Total: {len(all_tweets)})")
                 
                 cursor = self._get_next_cursor(tweets, batch_size)
                 if not cursor:
                     break
 
-                delay = random.uniform(1.5, 3.5)
-                logger.info(f"Sleeping for {delay:.2f} seconds to mimic human behavior.")
-                await asyncio.sleep(delay)
+                batch_num += 1
+                if batch_num % 10 == 0:
+                    break_time = random.uniform(30, 70)
+                    logger.info(f"Taking long human-like break: {break_time:.2f} seconds")
+                    await asyncio.sleep(break_time)
+                else:
+                    delay = random.uniform(3, 8)
+                    logger.info(f"Sleeping for {delay:.2f} seconds to mimic human behavior.")
+                    await asyncio.sleep(delay)
                 
             
             logger.info(f"Total timeline tweets fetched: {len(all_tweets)}")
@@ -92,7 +103,8 @@ class TwitterScraper:
                 return all_tweets
             raise
     
-    async def search_tweets(self, search_params: SearchParameters) -> List:
+    async def search_tweets(self, search_params: SearchParameters, 
+                           progress_callback: Optional[Callable] = None) -> List:
         """Search tweets based on provided parameters."""
         search_query = self.query_builder.build_search_query(search_params)
         search_type = self.query_builder.get_search_type(search_params)
@@ -103,6 +115,7 @@ class TwitterScraper:
         
         all_tweets = []
         cursor = None
+        batch_num = 0
         
         try:
             while len(all_tweets) < search_params.count:
@@ -118,15 +131,27 @@ class TwitterScraper:
                     break
                 
                 all_tweets.extend(results)
+                progress = len(all_tweets) / search_params.count
+                
+                # Call progress callback if provided
+                if progress_callback:
+                    progress_callback(progress, len(all_tweets), search_params.count)
+                
                 logger.info(f"Found {len(results)} tweets (Total: {len(all_tweets)})")
                 
                 cursor = self._get_next_cursor(results, batch_size)
                 if not cursor:
                     break
 
-                delay = random.uniform(1.5, 3.5)
-                logger.info(f"Sleeping for {delay:.2f} seconds to mimic human behavior.")
-                await asyncio.sleep(delay) 
+                batch_num += 1
+                if batch_num % 10 == 0:
+                    break_time = random.uniform(30, 70)
+                    logger.info(f"Taking long human-like break: {break_time:.2f} seconds")
+                    await asyncio.sleep(break_time)
+                else:
+                    delay = random.uniform(3, 8)
+                    logger.info(f"Sleeping for {delay:.2f} seconds to mimic human behavior.")
+                    await asyncio.sleep(delay)
             
             logger.info(f"Total search tweets found: {len(all_tweets)} for query: {search_query}")
             return all_tweets[:search_params.count]

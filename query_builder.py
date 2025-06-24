@@ -1,9 +1,3 @@
-"""
-Query builder utilities for Twitter scraper.
-
-Handles building search queries and determining search types.
-"""
-
 from config import SearchParameters, SearchMode, SearchType
 
 

@@ -1,9 +1,3 @@
-"""
-Rate limiting handler for Twitter scraper.
-
-Provides advanced rate limit handling with exponential backoff and jitter.
-"""
-
 import asyncio
 import logging
 import time
@@ -89,7 +83,10 @@ class RateLimitHandler:
         # Fall back to exponential backoff if reset time not available
         if wait_time == self.config.base_delay:
             wait_time = self._exponential_backoff(retry_count)
-        
+            if retry_count >= 2:
+                long_pause = random.uniform(20, 60)
+                wait_time += long_pause
+                logger.warning(f"Adding long pause {long_pause:.2f} sec due to repeated rate limits.")
         return wait_time
     
     def _exponential_backoff(self, retry_count: int) -> float:
@@ -114,7 +111,7 @@ class RateLimitHandler:
         
         # If we have more than 100 requests in the last 15 minutes, add delay
         if len(self.request_times) > 100:
-            delay = min(5.0, len(self.request_times) * 0.1)
+            delay = min(5.0, len(self.request_times) * 0.2)
             logger.info(f"Preemptive rate limiting: waiting {delay:.2f} seconds")
             await asyncio.sleep(delay)
     

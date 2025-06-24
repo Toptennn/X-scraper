@@ -1,14 +1,3 @@
-#!/usr/bin/env python3
-"""
-Twitter/X Data Scraper
-
-A professional, enterprise-grade Twitter scraping tool using twikit library.
-Supports fetching user timelines and searching tweets with advanced filtering options.
-
-Author: GitHub Copilot
-Version: 2.0.0
-"""
-
 import asyncio
 import logging
 from pathlib import Path

@@ -165,6 +165,7 @@ config.ini
 *.ini
 
 # Authentication and session files
+cookies/
 cookies.json
 *.json
 

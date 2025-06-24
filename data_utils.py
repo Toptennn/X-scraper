@@ -1,9 +1,3 @@
-"""
-Data processing utilities for Twitter scraper.
-
-Contains classes for extracting tweet data and managing file operations.
-"""
-
 import logging
 from datetime import datetime
 from pathlib import Path
