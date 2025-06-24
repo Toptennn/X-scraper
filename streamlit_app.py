@@ -5,10 +5,14 @@ import io
 from datetime import datetime, date, timedelta
 from pathlib import Path
 import logging
+import nest_asyncio
 
 from config import TwitterConfig, SearchParameters, SearchMode, TwitterCredentials
 from scraper import TwitterScraper
 from data_utils import TweetDataExtractor
+
+# Apply nest_asyncio to allow nested event loops
+nest_asyncio.apply()
 
 # Configure logging for Streamlit
 logging.basicConfig(level=logging.INFO)
@@ -91,6 +95,29 @@ async def run_scraping_task(scraper_wrapper, scraping_mode, **kwargs):
         )
     else:
         return await scraper_wrapper.scrape_search(kwargs['search_params'])
+
+def get_or_create_eventloop():
+    """Get or create an event loop for asyncio operations."""
+    try:
+        # Try to get the current event loop
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            # If the loop is closed, create a new one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+    except RuntimeError:
+        # If no event loop exists, create a new one
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop
+
+async def run_async_task(coro):
+    """Helper function to run async tasks safely."""
+    try:
+        return await coro
+    except Exception as e:
+        st.error(f"Async task failed: {str(e)}")
+        raise
 
 def create_download_link(df: pd.DataFrame, filename: str, file_format: str):
     """Create download link for DataFrame."""
@@ -186,12 +213,17 @@ def main():
             st.subheader("🔄 Scraping Progress")
             
             try:
+                # Get or create event loop
+                loop = get_or_create_eventloop()
+                
                 # Initialize scraper
                 scraper_wrapper = StreamlitTwitterScraper()
                 
                 with st.spinner("🔐 Authenticating with X..."):
-                    # Run authentication in event loop
-                    asyncio.run(scraper_wrapper.initialize_scraper(auth_id, password))
+                    # Run authentication
+                    loop.run_until_complete(
+                        run_async_task(scraper_wrapper.initialize_scraper(auth_id, password))
+                    )
                 
                 st.success("✅ Authentication successful!")
                 
@@ -206,12 +238,14 @@ def main():
                     st.info(f"🎯 Scraping timeline for @{timeline_screen_name}")
                     
                     # Run scraping task
-                    tweet_data = asyncio.run(run_scraping_task(
-                        scraper_wrapper, 
-                        scraping_mode,
-                        screen_name=timeline_screen_name,
-                        count=tweet_count
-                    ))
+                    tweet_data = loop.run_until_complete(
+                        run_async_task(run_scraping_task(
+                            scraper_wrapper, 
+                            scraping_mode,
+                            screen_name=timeline_screen_name,
+                            count=tweet_count
+                        ))
+                    )
                     prefix = f"timeline_{timeline_screen_name}"
                     
                 elif scraping_mode == "Date Range Search":
@@ -228,11 +262,13 @@ def main():
                         end_date=end_date.strftime("%Y-%m-%d")
                     )
                     
-                    tweet_data = asyncio.run(run_scraping_task(
-                        scraper_wrapper,
-                        scraping_mode,
-                        search_params=search_params
-                    ))
+                    tweet_data = loop.run_until_complete(
+                        run_async_task(run_scraping_task(
+                            scraper_wrapper,
+                            scraping_mode,
+                            search_params=search_params
+                        ))
+                    )
                     prefix = f"date_range_{query.replace('#', '').replace('@', '').replace(' ', '_')}"
                     
                 elif scraping_mode == "Popular Search":
@@ -247,11 +283,13 @@ def main():
                         mode=SearchMode.POPULAR
                     )
                     
-                    tweet_data = asyncio.run(run_scraping_task(
-                        scraper_wrapper,
-                        scraping_mode,
-                        search_params=search_params
-                    ))
+                    tweet_data = loop.run_until_complete(
+                        run_async_task(run_scraping_task(
+                            scraper_wrapper,
+                            scraping_mode,
+                            search_params=search_params
+                        ))
+                    )
                     prefix = f"popular_{query.replace('#', '').replace('@', '').replace(' ', '_')}"
                     
                 else:  # Latest Search
@@ -266,11 +304,13 @@ def main():
                         mode=SearchMode.LATEST
                     )
                     
-                    tweet_data = asyncio.run(run_scraping_task(
-                        scraper_wrapper,
-                        scraping_mode,
-                        search_params=search_params
-                    ))
+                    tweet_data = loop.run_until_complete(
+                        run_async_task(run_scraping_task(
+                            scraper_wrapper,
+                            scraping_mode,
+                            search_params=search_params
+                        ))
+                    )
                     prefix = f"latest_{query.replace('#', '').replace('@', '').replace(' ', '_')}"
                            
                 # Store results in session state
