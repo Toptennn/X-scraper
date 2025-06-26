@@ -6,6 +6,7 @@ from datetime import datetime, date, timedelta
 from pathlib import Path
 import logging
 import nest_asyncio
+import re
 
 from config import TwitterConfig, SearchParameters, SearchMode, TwitterCredentials
 from scraper import TwitterScraper
@@ -44,7 +45,6 @@ class StreamlitTwitterScraper:
 
         cookie_filename = f"{self._safe_filename(auth_id)}.json"
         cookie_path = cookies_dir / cookie_filename
-        st.info(f"🔖 Using cookie file: {cookie_path}")   # log ให้เห็นชัด *
 
         # 2️⃣  Build credentials config --------------------------------------
         credentials = TwitterCredentials(
@@ -364,7 +364,7 @@ def main():
             st.subheader("📊 Tweet Data")
             
             # Add filters
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             with col1:
                 username_filter = st.multiselect(
                     "Filter by Username",
@@ -377,6 +377,11 @@ def main():
                     options=sorted(df['lang'].unique()),
                     default=[]
                 )
+            with col3:
+                keyword_filter = st.text_input(
+                    "Filter by Keyword(s)",
+                    placeholder="Enter keywords separated by commas"
+                )
             
             # Apply filters
             filtered_df = df.copy()
@@ -384,7 +389,12 @@ def main():
                 filtered_df = filtered_df[filtered_df['username'].isin(username_filter)]
             if lang_filter:
                 filtered_df = filtered_df[filtered_df['lang'].isin(lang_filter)]            
-            
+            if keyword_filter:
+                keywords = [k.strip() for k in keyword_filter.split(',') if k.strip()]
+                if keywords:
+                    pattern = '|'.join([re.escape(k) for k in keywords])
+                    filtered_df = filtered_df[filtered_df['text'].str.contains(pattern, case=False, na=False)]
+
             # Display filtered data
             st.dataframe(
                 filtered_df,
