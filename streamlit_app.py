@@ -31,19 +31,34 @@ class StreamlitTwitterScraper:
         self.progress_bar = None
         self.progress_text = None
     
+    def _safe_filename(self, name: str) -> str:
+        """Return a filesystem‑safe string (letters, digits, _ and - only)."""
+        return "".join(c for c in name if c.isalnum() or c in ("_", "-")).lower() or "anonymous"
+
     async def initialize_scraper(self, auth_id: str, password: str):
-        """Initialize and authenticate the scraper."""
+        """Initialize and authenticate the scraper (per‑user cookie file)."""
+
+        # 1️⃣  Derive a per‑user cookie path  --------------------------------
+        cookies_dir = Path("cookies")
+        cookies_dir.mkdir(exist_ok=True)
+
+        cookie_filename = f"{self._safe_filename(auth_id)}.json"
+        cookie_path = cookies_dir / cookie_filename
+        st.info(f"🔖 Using cookie file: {cookie_path}")   # log ให้เห็นชัด *
+
+        # 2️⃣  Build credentials config --------------------------------------
         credentials = TwitterCredentials(
             auth_id=auth_id,
             password=password,
-            cookies_file='cookies.json'
+            cookies_file=str(cookie_path)
         )
-        
+
+        # 3️⃣  Carry on as before  -------------------------------------------
         self.config = TwitterConfig(
             credentials=credentials,
-            output_dir='output'
+            output_dir="output"
         )
-        
+
         self.scraper = TwitterScraper(self.config)
         await self.scraper.authenticate()
     
