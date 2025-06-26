@@ -26,18 +26,36 @@ class TwitterScraper:
     async def authenticate(self) -> None:
         """Authenticate with Twitter using provided credentials."""
         try:
-            await self.client.login(
+            await self.rate_limiter.execute_with_rate_limit(
+                self.client.login,
                 auth_info_1=self.config.credentials.auth_id,
                 password=self.config.credentials.password,
-                cookies_file=self.config.credentials.cookies_file
+                cookies_file=self.config.credentials.cookies_file,
             )
             logger.info("Successfully authenticated with Twitter")
-            delay = random.uniform(3, 10)
-            logger.info(f"Sleeping for {delay:.2f} seconds after authentication to mimic human.")
-            await asyncio.sleep(delay)
+            
+            await self._human_delay(long=False)
+            
         except Exception as e:
             logger.error(f"Authentication failed: {e}")
             raise
+
+    async def _human_delay(self, long: bool = False) -> None:
+        """
+        Delay แบบสมจริง
+        • long=True  → พักใหญ่ (expovariate λ≈1/40  →  mean≈40 s, cap 120 s)
+        • long=False → พักสั้น (log-normal μ=0.8, σ=0.6  →  ~1-10 s)
+        นอกจากนี้ทุก ๆ 3-5 batch จะ inject “typing-pause” 0.2-1 s
+        """
+        if long:
+            delay = min(random.expovariate(1/40), 120)
+        else:
+            delay = min(random.lognormvariate(0.8, 0.6), 10)
+        await asyncio.sleep(delay)
+
+        # ⌨️  typing-pause  (25-33 % chance)
+        if random.randint(0, 2) == 0:
+            await asyncio.sleep(random.uniform(0.2, 1.0))
     
     async def get_user_by_screen_name(self, screen_name: str):
         """Get user object by screen name."""
@@ -74,7 +92,7 @@ class TwitterScraper:
                 
                 # Call progress callback if provided
                 if progress_callback:
-                    progress_callback(progress, len(all_tweets), count)
+                    progress_callback(progress, len(all_tweets), count, tweets)
                 
                 logger.info(f"Fetched {len(tweets)} tweets (Total: {len(all_tweets)})")
                 
@@ -83,14 +101,7 @@ class TwitterScraper:
                     break
 
                 batch_num += 1
-                if batch_num % 10 == 0:
-                    break_time = random.uniform(30, 70)
-                    logger.info(f"Taking long human-like break: {break_time:.2f} seconds")
-                    await asyncio.sleep(break_time)
-                else:
-                    delay = random.uniform(3, 8)
-                    logger.info(f"Sleeping for {delay:.2f} seconds to mimic human behavior.")
-                    await asyncio.sleep(delay)
+                await self._human_delay(long=(batch_num % 10 == 0))
                 
             
             logger.info(f"Total timeline tweets fetched: {len(all_tweets)}")
@@ -135,7 +146,7 @@ class TwitterScraper:
                 
                 # Call progress callback if provided
                 if progress_callback:
-                    progress_callback(progress, len(all_tweets), search_params.count)
+                    progress_callback(progress, len(all_tweets), search_params.count, results)
                 
                 logger.info(f"Found {len(results)} tweets (Total: {len(all_tweets)})")
                 
@@ -144,14 +155,7 @@ class TwitterScraper:
                     break
 
                 batch_num += 1
-                if batch_num % 10 == 0:
-                    break_time = random.uniform(30, 70)
-                    logger.info(f"Taking long human-like break: {break_time:.2f} seconds")
-                    await asyncio.sleep(break_time)
-                else:
-                    delay = random.uniform(3, 8)
-                    logger.info(f"Sleeping for {delay:.2f} seconds to mimic human behavior.")
-                    await asyncio.sleep(delay)
+                await self._human_delay(long=(batch_num % 10 == 0))
             
             logger.info(f"Total search tweets found: {len(all_tweets)} for query: {search_query}")
             return all_tweets[:search_params.count]

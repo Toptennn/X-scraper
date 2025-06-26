@@ -64,29 +64,40 @@ class RateLimitHandler:
         raise Exception(f"Failed after {self.config.max_retries} retries")
     
     async def _calculate_wait_time(self, exception: TooManyRequests, retry_count: int) -> float:
-        """Calculate optimal wait time based on rate limit information."""
+        """เลือกเวลารอที่เหมาะสมจากข้อมูล rate-limit หรือใช้ back-off หากไม่มีข้อมูลแน่นอน."""
         wait_time = self.config.base_delay
-        
-        # Use rate limit reset time if available and configured
-        if self.config.respect_reset_time and hasattr(exception, 'rate_limit_reset'):
+
+        # 1) พยายามอ่าน epoch วินาทีจาก header ใหม่ของ Twikit ≥ 0.14
+        reset_epoch: int | None = None
+        if getattr(exception, "headers", None):
+            header_val = exception.headers.get("x-rate-limit-reset")
+            if header_val and str(header_val).isdigit():
+                reset_epoch = int(header_val)
+
+        # 2) ถ้า header ไม่มี ให้ลอง attribute แบบเก่า
+        if reset_epoch is None and hasattr(exception, "rate_limit_reset"):
+            reset_epoch = exception.rate_limit_reset
+
+        # 3) ถ้าเปิดใช้งาน respect_reset_time และมีค่า reset_epoch → ใช้ค่านั้น
+        if self.config.respect_reset_time and reset_epoch:
             try:
-                reset_time = datetime.fromtimestamp(exception.rate_limit_reset)
+                reset_time = datetime.fromtimestamp(reset_epoch)
                 time_until_reset = (reset_time - datetime.now()).total_seconds()
-                
                 if time_until_reset > 0:
-                    wait_time = min(time_until_reset + 5, self.config.max_delay)  # Add 5s buffer
+                    wait_time = min(time_until_reset + 5, self.config.max_delay)  # บัฟเฟอร์ 5 วินาที
                     self.last_rate_limit_reset = reset_time
-                    logger.info(f"Using rate limit reset time: {reset_time}")
-            except (ValueError, TypeError, AttributeError) as e:
-                logger.warning(f"Could not parse rate limit reset time: {e}")
-        
-        # Fall back to exponential backoff if reset time not available
+                    logger.info(f"ใช้เวลาจาก X-Rate-Limit-Reset: {reset_time}")
+            except (ValueError, TypeError, OSError) as e:
+                logger.warning(f"ไม่สามารถแปลง epoch {reset_epoch} ได้: {e}")
+
+        # 4) ถ้าไม่มีข้อมูล reset → ตกกลับมาใช้ exponential back-off + long pause เพิ่มเมื่อเจอหลายครั้ง
         if wait_time == self.config.base_delay:
             wait_time = self._exponential_backoff(retry_count)
             if retry_count >= 2:
                 long_pause = random.uniform(20, 60)
                 wait_time += long_pause
-                logger.warning(f"Adding long pause {long_pause:.2f} sec due to repeated rate limits.")
+                logger.warning(f"เพิ่มพักยาว {long_pause:.2f} วินาทีเพราะ rate-limit ซ้ำ")
+
         return wait_time
     
     def _exponential_backoff(self, retry_count: int) -> float:

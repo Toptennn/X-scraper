@@ -66,8 +66,10 @@ class StreamlitTwitterScraper:
         """Setup progress bar and text display."""
         self.progress_bar = st.progress(0)
         self.progress_text = st.empty()
+        self.data_placeholder = st.empty()          
+        st.session_state.live_data = [] 
     
-    def update_progress(self, progress: float, current: int, total: int):
+    def update_progress(self, progress: float, current: int, total: int, new_batch=None):
         """Update progress bar and text."""
         if self.progress_bar and self.progress_text:
             # Ensure progress is between 0 and 1
@@ -82,6 +84,25 @@ class StreamlitTwitterScraper:
                 f"Scraped: {current:,} / {total:,} tweets | "
                 f"Remaining: {total - current:,} tweets"
             )
+
+            if new_batch:
+                # เตรียม session state / placeholder เมื่อเรียกครั้งแรก
+                if "live_data" not in st.session_state:
+                    st.session_state.live_data = []
+                if not hasattr(self, "data_placeholder"):
+                    # จะถูกสร้างใน setup_progress_display()
+                    self.data_placeholder = st.empty()
+
+                # แปลงทวีตเป็นดิก → ต่อทับ data สด
+                st.session_state.live_data.extend(
+                    TweetDataExtractor.extract_tweet_data(new_batch)
+                )
+
+                df_live = pd.DataFrame(st.session_state.live_data)
+                self.data_placeholder.dataframe(
+                    df_live,
+                    use_container_width=True,
+                )
     
     async def scrape_timeline(self, screen_name: str, count: int):
         """Scrape user timeline for specified screen name."""
@@ -407,7 +428,7 @@ def main():
                     "retweet_count": st.column_config.NumberColumn("Retweets"),
                     "favorite_count": st.column_config.NumberColumn("Favorites"),
                     "reply_count": st.column_config.NumberColumn("Replies")
-                }
+                },
             )
             
             # Download options
