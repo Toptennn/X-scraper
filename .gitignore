@@ -168,6 +168,8 @@ config.ini
 cookies/
 cookies.json
 *.json
+!frontend/package.json
+!frontend/tsconfig.json
 
 # Log files
 *.log
@@ -206,3 +208,6 @@ desktop.ini
 .env.development.local
 .env.test.local
 .env.production.local
+# Node
+frontend/node_modules/
+frontend/.next/
