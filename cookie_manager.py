@@ -2,6 +2,7 @@ import os
 import logging
 from pathlib import Path
 from typing import Dict
+from dotenv import load_dotenv
 
 try:
     from upstash_redis import Redis
@@ -11,6 +12,9 @@ except Exception:  # pragma: no cover - optional dependency
 from config import COOKIES_DIR
 
 logger = logging.getLogger(__name__)
+
+# Load environment variables from .env file
+load_dotenv()
 
 class RedisCookieManager:
     """Manage cookie files with optional Upstash Redis storage."""
