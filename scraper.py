@@ -9,6 +9,7 @@ from config import TwitterConfig, RateLimitConfig, SearchParameters
 from rate_limiter import RateLimitHandler
 from data_utils import FileManager
 from query_builder import QueryBuilder
+from cookie_manager import RedisCookieManager
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +17,15 @@ logger = logging.getLogger(__name__)
 class TwitterScraper:
     """Professional Twitter scraper with comprehensive functionality."""
     
-    def __init__(self, config: TwitterConfig, rate_limit_config: RateLimitConfig = None):
+    def __init__(self, config: TwitterConfig, rate_limit_config: RateLimitConfig = None,
+                 cookie_manager: RedisCookieManager | None = None):
         self.config = config
+        self.cookie_manager = cookie_manager or RedisCookieManager()
+
+        # Ensure cookie path exists locally (may fetch from Redis)
+        cookie_path = self.cookie_manager.load_cookie(self.config.credentials.auth_id)
+        self.config.credentials.cookies_file = str(cookie_path)
+
         self.client = Client('en-US')
         self.file_manager = FileManager(config.output_dir)
         self.query_builder = QueryBuilder()
@@ -35,6 +43,9 @@ class TwitterScraper:
                 cookies_file=self.config.credentials.cookies_file,
             )
             logger.info("Successfully authenticated with Twitter")
+
+            # Persist updated cookies to Redis
+            self.cookie_manager.save_cookie(self.config.credentials.auth_id)
             
             await self._human_delay(long=False)
             

@@ -3,3 +3,4 @@ pandas>=1.5.0
 asyncio
 nest-asyncio
 openpyxl
+upstash-redis

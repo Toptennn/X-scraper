@@ -10,6 +10,7 @@ import re
 
 from config import TwitterConfig, SearchParameters, SearchMode, TwitterCredentials
 from scraper import TwitterScraper
+from cookie_manager import RedisCookieManager
 from data_utils import TweetDataExtractor
 
 # Apply nest_asyncio to allow nested event loops
@@ -39,27 +40,21 @@ class StreamlitTwitterScraper:
     async def initialize_scraper(self, auth_id: str, password: str):
         """Initialize and authenticate the scraper (per‑user cookie file)."""
 
-        # 1️⃣  Derive a per‑user cookie path  --------------------------------
-        cookies_dir = Path("cookies")
-        cookies_dir.mkdir(exist_ok=True)
+        cookie_manager = RedisCookieManager()
+        cookie_path = cookie_manager.load_cookie(auth_id)
 
-        cookie_filename = f"{self._safe_filename(auth_id)}.json"
-        cookie_path = cookies_dir / cookie_filename
-
-        # 2️⃣  Build credentials config --------------------------------------
         credentials = TwitterCredentials(
             auth_id=auth_id,
             password=password,
             cookies_file=str(cookie_path)
         )
 
-        # 3️⃣  Carry on as before  -------------------------------------------
+        # Continue as before -----------------------------------------------
         self.config = TwitterConfig(
             credentials=credentials,
             output_dir="output"
         )
-
-        self.scraper = TwitterScraper(self.config)
+        self.scraper = TwitterScraper(self.config, cookie_manager=cookie_manager)
         await self.scraper.authenticate()
     
     def setup_progress_display(self):
