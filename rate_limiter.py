@@ -6,17 +6,27 @@ from datetime import datetime
 from typing import Callable
 
 from twikit.errors import TooManyRequests, Unauthorized, BadRequest
+from typing import Callable, Awaitable, Optional
+
 from config import RateLimitConfig
 
 logger = logging.getLogger(__name__)
 
 
 class RateLimitHandler:
-    """Advanced rate limit handling with exponential backoff and jitter."""
-    
-    def __init__(self, config: RateLimitConfig = None):
+    """
+    Advanced rate-limit handler **พร้อม fallback re-authentication**
+    `reauth_callback` ต้องเป็น async fn ที่ล็อกอินสำเร็จแล้ว (เช่น `TwitterScraper.authenticate`)
+    """
+
+    def __init__(
+        self,
+        config: RateLimitConfig | None = None,
+        reauth_callback: Optional[Callable[[], Awaitable[None]]] = None,
+    ):
         self.config = config or RateLimitConfig()
-        self.request_times = []
+        self.reauth_callback = reauth_callback
+        self.request_times: list[float] = []
         self.last_rate_limit_reset = None
     
     async def execute_with_rate_limit(self, func: Callable, *args, **kwargs):
@@ -47,8 +57,23 @@ class RateLimitHandler:
                 
                 await asyncio.sleep(wait_time)
                 
-            except (Unauthorized, BadRequest) as e:
-                logger.error(f"Non-recoverable error: {e}")
+            except Unauthorized as e:
+                if self.reauth_callback:
+                    logger.warning("Unauthorized (likely expired cookie) – attempting re-login")
+                    try:
+                        await self.reauth_callback()         # 🔄  login ใหม่
+                    except Exception as auth_err:
+                        logger.error(f"Re-authentication failed: {auth_err}")
+                        raise
+                    retries += 1
+                    continue       # 🔁  ลูปไปยิง request เดิมซ้ำ
+                else:
+                    logger.error(f"Unauthorized and no re-auth callback set: {e}")
+                    raise
+
+            # ---------- 🟥  ข้อผิดพลาดอื่น ๆ ที่ไม่ recovery ----------
+            except BadRequest as e:
+                logger.error(f"Bad request (4xx non-auth): {e}")
                 raise
                 
             except Exception as e:

@@ -21,7 +21,9 @@ class TwitterScraper:
         self.client = Client('en-US')
         self.file_manager = FileManager(config.output_dir)
         self.query_builder = QueryBuilder()
-        self.rate_limiter = RateLimitHandler(rate_limit_config)
+        self.rate_limiter = RateLimitHandler(
+            rate_limit_config,
+            reauth_callback=self.authenticate,)
     
     async def authenticate(self) -> None:
         """Authenticate with Twitter using provided credentials."""
