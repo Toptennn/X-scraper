@@ -209,3 +209,6 @@ desktop.ini
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Streamlit secrets and configuration
+.streamlit/
