@@ -131,15 +131,23 @@ async def run_async_task(coro):
 
 def create_download_link(df: pd.DataFrame, filename: str, file_format: str):
     """Create download link for DataFrame."""
+    
+    df_for_download = df.copy()
+
+    if file_format == 'excel':
+        # Convert timezone-aware datetime to timezone-naive for Excel compatibility
+        if 'created_at' in df_for_download.columns and pd.api.types.is_datetime64_any_dtype(df_for_download['created_at']):
+            df_for_download['created_at'] = df_for_download['created_at'].dt.tz_localize(None)
+
     if file_format == 'csv':
         output = io.StringIO()
-        df.to_csv(output, index=False, encoding='utf-8-sig')
+        df_for_download.to_csv(output, index=False, encoding='utf-8-sig')
         data = output.getvalue()
         mime_type = 'text/csv'
     elif file_format == 'excel':
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Tweets')
+            df_for_download.to_excel(writer, index=False, sheet_name='Tweets')
         data = output.getvalue()
         mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     
@@ -343,6 +351,9 @@ def main():
         if st.session_state.tweet_data:
             df = pd.DataFrame(st.session_state.tweet_data)
             
+            # Convert 'created_at' to Thailand's time zone (UTC+7)
+            df['created_at'] = pd.to_datetime(df['created_at'], utc=True).dt.tz_convert('Asia/Bangkok')
+
             # Display metrics
             st.subheader("📊 Summary Statistics")
             col1, col2, col3, col4 = st.columns(4)
