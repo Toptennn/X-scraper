@@ -1,0 +1,3 @@
+[tool.ruff]
+line-length = 88
+extend-ignore = ["F401", "E402", "F811", "F541"]
