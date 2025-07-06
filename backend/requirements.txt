@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+twikit>=1.0.0
+pandas>=1.5.0
+asyncio
+nest-asyncio
+openpyxl
+upstash-redis
