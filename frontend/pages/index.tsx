@@ -3,26 +3,27 @@ import Head from 'next/head';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import TweetTable from '../components/TweetTable';
+import type { Tweet, Toast } from '../types';
 
 const API_URL = 'http://localhost:8000';
 
 export default function Home() {
-  const [authId, setAuthId] = useState('');
-  const [password, setPassword] = useState('');
-  const [mode, setMode] = useState('timeline');
-  const [screenName, setScreenName] = useState('');
-  const [query, setQuery] = useState('');
-  const [count, setCount] = useState(50);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [tweets, setTweets] = useState([]);
-  const [error, setError] = useState('');
+  const [authId, setAuthId] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [mode, setMode] = useState<string>('timeline');
+  const [screenName, setScreenName] = useState<string>('');
+  const [query, setQuery] = useState<string>('');
+  const [count, setCount] = useState<number>(50);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [tweets, setTweets] = useState<Tweet[]>([]);
+  const [error, setError] = useState<string>('');
   
   // Filter states
-  const [usernameFilter, setUsernameFilter] = useState('');
-  const [keywordFilter, setKeywordFilter] = useState('');
-  const [toast, setToast] = useState(null);
+  const [usernameFilter, setUsernameFilter] = useState<string>('');
+  const [keywordFilter, setKeywordFilter] = useState<string>('');
+  const [toast, setToast] = useState<Toast | null>(null);
 
   // Filtered tweets based on filters
   const filteredTweets = useMemo(() => {
@@ -35,12 +36,12 @@ export default function Home() {
     });
   }, [tweets, usernameFilter, keywordFilter]);
 
-  const showToast = (message, type = 'success') => {
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setTweets([]);
@@ -48,17 +49,17 @@ export default function Home() {
 
     try {
       let endpoint = '';
-      let body = {};
+      let body: any = {};
       if (mode === 'timeline') {
         endpoint = `${API_URL}/timeline`;
-        body = { auth_id: authId, password, screen_name: screenName, count: parseInt(count) };
+        body = { auth_id: authId, password, screen_name: screenName, count: parseInt(count.toString()) };
       } else {
         endpoint = `${API_URL}/search`;
         body = {
           auth_id: authId,
           password,
           query,
-          count: parseInt(count),
+          count: parseInt(count.toString()),
           mode,
           start_date: startDate || null,
           end_date: endDate || null,
@@ -75,7 +76,7 @@ export default function Home() {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
       
-      const data = await res.json();
+      const data: Tweet[] = await res.json();
       setTweets(data);
       showToast(`Successfully scraped ${data.length} tweets!`);
     } catch (err) {
@@ -87,7 +88,7 @@ export default function Home() {
     setLoading(false);
   };
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string): string => {
     try {
       return new Date(dateString).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -106,10 +107,10 @@ export default function Home() {
       post_date: formatDate(tweet.created_at),
       username: tweet.username,
       text: tweet.text,
-      url: tweet.url || `https://twitter.com/${tweet.username}/status/${tweet.tweet_id}`,
-      retweet_count: tweet.retweet_count || 0,
-      favorite_count: tweet.favorite_count || 0,
-      reply_count: tweet.reply_count || 0
+      url: tweet.url ?? `https://twitter.com/${tweet.username}/status/${tweet.tweet_id}`,
+      retweet_count: tweet.retweet_count ?? 0,
+      favorite_count: tweet.favorite_count ?? 0,
+      reply_count: tweet.reply_count ?? 0
     }));
 
     const csv = Papa.unparse(csvData);
@@ -130,10 +131,10 @@ export default function Home() {
       'Post Date': formatDate(tweet.created_at),
       'Username': tweet.username,
       'Text': tweet.text,
-      'URL': tweet.url || `https://twitter.com/${tweet.username}/status/${tweet.tweet_id}`,
-      'Retweet Count': tweet.retweet_count || 0,
-      'Favorite Count': tweet.favorite_count || 0,
-      'Reply Count': tweet.reply_count || 0
+      'URL': tweet.url ?? `https://twitter.com/${tweet.username}/status/${tweet.tweet_id}`,
+      'Retweet Count': tweet.retweet_count ?? 0,
+      'Favorite Count': tweet.favorite_count ?? 0,
+      'Reply Count': tweet.reply_count ?? 0
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
@@ -316,7 +317,7 @@ export default function Home() {
                         min="1"
                         max="200"
                         value={count}
-                        onChange={e => setCount(e.target.value)}
+                        onChange={e => setCount(parseInt(e.target.value))}
                         placeholder="Max 200"
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all duration-200"
                       />
@@ -357,13 +358,15 @@ export default function Home() {
               <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
                 {/* Results Header */}
                 <div className="bg-gradient-to-r from-primary-50 to-secondary-50 px-6 py-4 border-b border-gray-200">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-semibold text-gray-800">📊 Results</h2>
-                    {filteredTweets.length > 0 && (
-                      <span className="bg-primary-gradient text-white px-3 py-1 rounded-full text-sm font-medium">
-                        {filteredTweets.length} tweet{filteredTweets.length !== 1 ? 's' : ''}
-                      </span>
-                    )}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-xl font-semibold text-gray-800">📊 Results</h2>
+                      {filteredTweets.length > 0 && (
+                        <span className="bg-primary-gradient text-white px-3 py-1 rounded-full text-sm font-medium">
+                          {filteredTweets.length} tweet{filteredTweets.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 

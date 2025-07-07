@@ -1,6 +1,19 @@
 import { useState } from 'react';
+import type { Tweet, SortDirection } from '../types';
 
-const SortIcon = ({ field, sortField, sortDirection }) => {
+interface SortIconProps {
+  field: string;
+  sortField: string;
+  sortDirection: SortDirection;
+}
+
+interface TweetTableProps {
+  tweets: Tweet[];
+  onExportCSV: () => void;
+  onExportExcel: () => void;
+}
+
+const SortIcon = ({ field, sortField, sortDirection }: SortIconProps) => {
   if (sortField !== field) {
     return <span className="text-gray-400 ml-1">↕️</span>;
   }
@@ -9,12 +22,12 @@ const SortIcon = ({ field, sortField, sortDirection }) => {
     <span className="text-primary-600 ml-1">↓</span>;
 };
 
-const TweetTable = ({ tweets, onExportCSV, onExportExcel }) => {
-  const [sortField, setSortField] = useState('created_at');
-  const [sortDirection, setSortDirection] = useState('desc');
-  const [expandedRows, setExpandedRows] = useState(new Set());
+const TweetTable = ({ tweets, onExportCSV, onExportExcel }: TweetTableProps) => {
+  const [sortField, setSortField] = useState<string>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
-  const handleSort = (field) => {
+  const handleSort = (field: string) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -23,7 +36,7 @@ const TweetTable = ({ tweets, onExportCSV, onExportExcel }) => {
     }
   };
 
-  const toggleRowExpansion = (index) => {
+  const toggleRowExpansion = (index: number) => {
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(index)) {
       newExpanded.delete(index);
@@ -34,8 +47,8 @@ const TweetTable = ({ tweets, onExportCSV, onExportExcel }) => {
   };
 
   const sortedTweets = [...tweets].sort((a, b) => {
-    let aValue = a[sortField];
-    let bValue = b[sortField];
+    let aValue: any = a[sortField as keyof Tweet];
+    let bValue: any = b[sortField as keyof Tweet];
 
     if (sortField === 'created_at') {
       aValue = new Date(aValue);
@@ -55,7 +68,7 @@ const TweetTable = ({ tweets, onExportCSV, onExportExcel }) => {
     return 0;
   });
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string): string => {
     try {
       return new Date(dateString).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -69,8 +82,8 @@ const TweetTable = ({ tweets, onExportCSV, onExportExcel }) => {
     }
   };
 
-  const formatNumber = (num) => {
-    if (num == null) return 0;
+  const formatNumber = (num?: number): string => {
+    if (num == null) return '0';
     if (num >= 1000000) {
       return (num / 1000000).toFixed(1) + 'M';
     } else if (num >= 1000) {
@@ -84,14 +97,14 @@ const TweetTable = ({ tweets, onExportCSV, onExportExcel }) => {
       {/* Mobile Cards View */}
       <div className="block md:hidden space-y-4">
         {sortedTweets.map((tweet, index) => (
-          <div key={tweet.tweet_id || index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div key={tweet.tweet_id ?? index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex justify-between items-start mb-3">
               <div className="flex-1">
                 <div className="font-semibold text-gray-900">@{tweet.username}</div>
                 <div className="text-sm text-gray-500">{formatDate(tweet.created_at)}</div>
               </div>
               <a
-                href={tweet.url || `https://twitter.com/${tweet.username}/status/${tweet.tweet_id}`}
+                href={tweet.url ?? `https://twitter.com/${tweet.username}/status/${tweet.tweet_id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary-600 hover:text-primary-800 text-sm font-medium"
@@ -117,15 +130,15 @@ const TweetTable = ({ tweets, onExportCSV, onExportExcel }) => {
             <div className="flex justify-between text-sm text-gray-500 pt-2 border-t border-gray-100">
               <span className="flex items-center gap-1">
                 <span>💬</span>
-                <span>{formatNumber(tweet.reply_count || 0)}</span>
+                <span>{formatNumber(tweet.reply_count)}</span>
               </span>
               <span className="flex items-center gap-1">
                 <span>🔁</span>
-                <span>{formatNumber(tweet.retweet_count || 0)}</span>
+                <span>{formatNumber(tweet.retweet_count)}</span>
               </span>
               <span className="flex items-center gap-1">
                 <span>❤️</span>
-                <span>{formatNumber(tweet.favorite_count || 0)}</span>
+                <span>{formatNumber(tweet.favorite_count)}</span>
               </span>
             </div>
           </div>
@@ -192,7 +205,7 @@ const TweetTable = ({ tweets, onExportCSV, onExportExcel }) => {
           </thead>
           <tbody>
             {sortedTweets.map((tweet, index) => (
-              <tr key={tweet.tweet_id || index} className="hover:bg-gray-50 transition-colors duration-150">
+              <tr key={tweet.tweet_id ?? index} className="hover:bg-gray-50 transition-colors duration-150">
                 <td className="px-4 py-3 text-sm text-gray-600 border-b whitespace-nowrap">
                   {formatDate(tweet.created_at)}
                 </td>
@@ -214,7 +227,7 @@ const TweetTable = ({ tweets, onExportCSV, onExportExcel }) => {
                 </td>
                 <td className="px-4 py-3 text-sm border-b">
                   <a
-                    href={tweet.url || `https://twitter.com/${tweet.username}/status/${tweet.tweet_id}`}
+                    href={tweet.url ?? `https://twitter.com/${tweet.username}/status/${tweet.tweet_id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary-600 hover:text-primary-800 hover:underline font-medium"
@@ -223,13 +236,13 @@ const TweetTable = ({ tweets, onExportCSV, onExportExcel }) => {
                   </a>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-600 border-b text-center">
-                  {formatNumber(tweet.retweet_count || 0)}
+                  {formatNumber(tweet.retweet_count)}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-600 border-b text-center">
-                  {formatNumber(tweet.favorite_count || 0)}
+                  {formatNumber(tweet.favorite_count)}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-600 border-b text-center">
-                  {formatNumber(tweet.reply_count || 0)}
+                  {formatNumber(tweet.reply_count)}
                 </td>
               </tr>
             ))}
