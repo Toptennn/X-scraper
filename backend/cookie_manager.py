@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from typing import Dict
 import streamlit as st
+from dotenv import load_dotenv
 
 try:
     from upstash_redis import Redis
@@ -13,17 +14,24 @@ from config import COOKIES_DIR
 
 logger = logging.getLogger(__name__)
 
+load_dotenv()
+
 class RedisCookieManager:
     """Manage cookie files with optional Upstash Redis storage."""
 
     def __init__(self) -> None:
-        url   = st.secrets.get("UPSTASH_REDIS_URL", "")
-        token = st.secrets.get("UPSTASH_REDIS_TOKEN", "")
-            
+        url   = os.getenv("UPSTASH_REDIS_URL")
+        token = os.getenv("UPSTASH_REDIS_TOKEN")
+
         if url and token and Redis:
             self.redis = Redis(url=url, token=token)
         else:
+            logger.warning(
+                "UPSTASH_REDIS_URL or UPSTASH_REDIS_TOKEN environment variables not found. "
+                "Cookie persistence will be disabled."
+            )
             self.redis = None
+            
         self.cache: Dict[str, str] = {}
 
     def _safe_id(self, auth_id: str) -> str:

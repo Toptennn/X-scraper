@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
+from fastapi.middleware.cors import CORSMiddleware
 
 import asyncio
 
@@ -10,6 +11,14 @@ from cookie_manager import RedisCookieManager
 from data_utils import TweetDataExtractor
 
 app = FastAPI(title="X Scraper API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 
 async def create_scraper(auth_id: str, password: str) -> TwitterScraper:
