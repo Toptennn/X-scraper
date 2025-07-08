@@ -2,7 +2,7 @@
 Configuration classes and enums for the X/Twitter scraper.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 from pathlib import Path

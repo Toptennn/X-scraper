@@ -1,9 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
 
-import asyncio
 
 from config import TwitterConfig, TwitterCredentials, SearchParameters, SearchMode
 from scraper import TwitterScraper
