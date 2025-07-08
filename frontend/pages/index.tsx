@@ -5,7 +5,7 @@ import Papa from 'papaparse';
 import TweetTable from '../components/TweetTable';
 import type { Tweet, Toast } from '../types';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function Home() {
   const [authId, setAuthId] = useState<string>('');
