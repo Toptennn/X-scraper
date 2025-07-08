@@ -264,3 +264,8 @@ coverage/
 
 # Dependency directories
 jspm_packages/
+
+# but do not ignore these config/lock files
+!package.json
+!package-lock.json
+!tsconfig.json
