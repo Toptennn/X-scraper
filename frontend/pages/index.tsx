@@ -16,6 +16,10 @@ export default function Home() {
   const [count, setCount] = useState<number>(50);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [otp, setOtp] = useState<string>('');
+  const [emailConfirm, setEmailConfirm] = useState<string>('');
+  const [otpRequired, setOtpRequired] = useState<boolean>(false);
+  const [emailRequired, setEmailRequired] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [tweets, setTweets] = useState<Tweet[]>([]);
   const [error, setError] = useState<string>('');
@@ -52,7 +56,14 @@ export default function Home() {
       let body: any = {};
       if (mode === 'timeline') {
         endpoint = `${API_URL}/timeline`;
-        body = { auth_id: authId, password, screen_name: screenName, count: parseInt(count.toString()) };
+        body = {
+          auth_id: authId,
+          password,
+          screen_name: screenName,
+          count: parseInt(count.toString()),
+          otp: otp || null,
+          email: emailConfirm || null,
+        };
       } else {
         endpoint = `${API_URL}/search`;
         body = {
@@ -63,6 +74,8 @@ export default function Home() {
           mode,
           start_date: startDate || null,
           end_date: endDate || null,
+          otp: otp || null,
+          email: emailConfirm || null,
         };
       }
 
@@ -71,14 +84,35 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      
       if (!res.ok) {
+        if (res.status === 401) {
+          const data = await res.json();
+          if (data.detail === 'OTP_REQUIRED') {
+            setOtpRequired(true);
+            setError('OTP verification required');
+            showToast('OTP required. Check your email.', 'error');
+            setLoading(false);
+            return;
+          }
+          if (data.detail === 'EMAIL_REQUIRED') {
+            setEmailRequired(true);
+            setError('Email confirmation required');
+            showToast('Please confirm your email.', 'error');
+            setLoading(false);
+            return;
+          }
+        }
         throw new Error(`HTTP error! status: ${res.status}`);
       }
       
       const data: Tweet[] = await res.json();
       setTweets(data);
       showToast(`Successfully scraped ${data.length} tweets!`);
+      setError('');
+      setOtpRequired(false);
+      setEmailRequired(false);
+      setOtp('');
+      setEmailConfirm('');
     } catch (err) {
       console.error(err);
       setError('Failed to scrape tweets. Please check your credentials and try again.');
@@ -201,7 +235,7 @@ export default function Home() {
                       <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                         Password
                       </label>
-                      <input
+                    <input
                         id="password"
                         type="password"
                         value={password}
@@ -211,6 +245,38 @@ export default function Home() {
                         required
                       />
                     </div>
+                    {otpRequired && (
+                      <div>
+                        <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-2">
+                          OTP Code
+                        </label>
+                        <input
+                          id="otp"
+                          type="text"
+                          value={otp}
+                          onChange={e => setOtp(e.target.value)}
+                          placeholder="Enter the OTP"
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all duration-200"
+                          required
+                        />
+                      </div>
+                    )}
+                    {emailRequired && (
+                      <div>
+                        <label htmlFor="emailConfirm" className="block text-sm font-medium text-gray-700 mb-2">
+                          Email
+                        </label>
+                        <input
+                          id="emailConfirm"
+                          type="email"
+                          value={emailConfirm}
+                          onChange={e => setEmailConfirm(e.target.value)}
+                          placeholder="Re-enter your email"
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all duration-200"
+                          required
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Search Mode */}

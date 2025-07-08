@@ -1,11 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
 
 
 from config import TwitterConfig, TwitterCredentials, SearchParameters, SearchMode
-from scraper import TwitterScraper
+from scraper import (
+    TwitterScraper,
+    OTPRequiredError,
+    EmailConfirmationRequiredError,
+)
 from cookie_manager import RedisCookieManager
 from data_utils import TweetDataExtractor
 
@@ -20,24 +24,31 @@ app.add_middleware(
 )
 
 
-async def create_scraper(auth_id: str, password: str) -> TwitterScraper:
+async def create_scraper(
+    auth_id: str,
+    password: str,
+    otp: str | None = None,
+    email: str | None = None,
+) -> TwitterScraper:
     """Initialize scraper with credentials and authenticate."""
     cookie_manager = RedisCookieManager()
     cookie_path = cookie_manager.load_cookie(auth_id)
     credentials = TwitterCredentials(
         auth_id=auth_id,
         password=password,
-        cookies_file=str(cookie_path)
+        cookies_file=str(cookie_path),
     )
     config = TwitterConfig(credentials=credentials, output_dir="output")
     scraper = TwitterScraper(config, cookie_manager=cookie_manager)
-    await scraper.authenticate()
+    await scraper.authenticate(otp=otp, email=email)
     return scraper
 
 
 class TimelineRequest(BaseModel):
     auth_id: str
     password: str
+    otp: Optional[str] = None
+    email: Optional[str] = None
     screen_name: str
     count: int = 50
 
@@ -45,6 +56,8 @@ class TimelineRequest(BaseModel):
 class SearchRequest(BaseModel):
     auth_id: str
     password: str
+    otp: Optional[str] = None
+    email: Optional[str] = None
     query: str
     count: int = 50
     mode: SearchMode = SearchMode.POPULAR
@@ -55,7 +68,18 @@ class SearchRequest(BaseModel):
 @app.post("/timeline")
 async def scrape_timeline(req: TimelineRequest):
     """Fetch tweets from a user's timeline."""
-    scraper = await create_scraper(req.auth_id, req.password)
+    try:
+        scraper = await create_scraper(
+            req.auth_id,
+            req.password,
+            otp=req.otp,
+            email=req.email,
+        )
+    except OTPRequiredError:
+        raise HTTPException(status_code=401, detail="OTP_REQUIRED")
+    except EmailConfirmationRequiredError:
+        raise HTTPException(status_code=401, detail="EMAIL_REQUIRED")
+
     user = await scraper.get_user_by_screen_name(req.screen_name)
     tweets = await scraper.fetch_user_timeline(user.id, count=req.count)
     return TweetDataExtractor.extract_tweet_data(tweets)
@@ -64,7 +88,18 @@ async def scrape_timeline(req: TimelineRequest):
 @app.post("/search")
 async def search_tweets(req: SearchRequest):
     """Search tweets based on query parameters."""
-    scraper = await create_scraper(req.auth_id, req.password)
+    try:
+        scraper = await create_scraper(
+            req.auth_id,
+            req.password,
+            otp=req.otp,
+            email=req.email,
+        )
+    except OTPRequiredError:
+        raise HTTPException(status_code=401, detail="OTP_REQUIRED")
+    except EmailConfirmationRequiredError:
+        raise HTTPException(status_code=401, detail="EMAIL_REQUIRED")
+
     params = SearchParameters(
         query=req.query,
         count=req.count,

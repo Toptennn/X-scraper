@@ -3,6 +3,13 @@ import logging
 import random
 from typing import List, Optional, Callable
 
+class OTPRequiredError(Exception):
+    """Raised when an OTP is required for login."""
+
+
+class EmailConfirmationRequiredError(Exception):
+    """Raised when email confirmation is required for login."""
+
 from twikit import Client
 
 from config import TwitterConfig, RateLimitConfig, SearchParameters
@@ -33,13 +40,15 @@ class TwitterScraper:
             rate_limit_config,
             reauth_callback=self.authenticate,)
     
-    async def authenticate(self) -> None:
+    async def authenticate(self, otp: str | None = None, email: str | None = None) -> None:
         """Authenticate with Twitter using provided credentials."""
         try:
             await self.rate_limiter.execute_with_rate_limit(
                 self.client.login,
                 auth_info_1=self.config.credentials.auth_id,
                 password=self.config.credentials.password,
+                auth_info_2=email,
+                otp=otp,
                 cookies_file=self.config.credentials.cookies_file,
             )
             logger.info("Successfully authenticated with Twitter")
@@ -50,6 +59,13 @@ class TwitterScraper:
             await self._human_delay(long=False)
             
         except Exception as e:
+            message = str(e).lower()
+            if "otp" in message or "two" in message:
+                logger.info("OTP required for login")
+                raise OTPRequiredError from e
+            if "email" in message:
+                logger.info("Email confirmation required for login")
+                raise EmailConfirmationRequiredError from e
             logger.error(f"Authentication failed: {e}")
             raise
 
